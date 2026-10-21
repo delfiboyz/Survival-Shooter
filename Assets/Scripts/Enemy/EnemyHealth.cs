@@ -1,12 +1,19 @@
 ﻿using UnityEngine;
+using UnityEngine.AI;
 
 public class EnemyHealth : MonoBehaviour
 {
+    static readonly int DeadHash = Animator.StringToHash("Dead");
+
     public int startingHealth = 100;
     public int currentHealth;
     public float sinkSpeed = 2.5f;
     public int scoreValue = 10;
     public AudioClip deathClip;
+
+    [Range(0f, 1f)]
+    public float healthDropChance = 0.15f;
+    public int healthDropAmount = 20;
 
 
     Animator anim;
@@ -16,10 +23,12 @@ public class EnemyHealth : MonoBehaviour
     bool isDead;
     bool isSinking;
 
+    public bool IsDead => isDead;
+
 
     void Awake()
     {
-        //Menapatkan reference komponen
+        //Mendapatkan reference komponen
         anim = GetComponent<Animator>();
         enemyAudio = GetComponent<AudioSource>();
         hitParticles = GetComponentInChildren<ParticleSystem>();
@@ -59,6 +68,9 @@ public class EnemyHealth : MonoBehaviour
         //Play particle system
         hitParticles.Play();
 
+        //Tampilkan angka damage
+        DamagePopup.Spawn(hitPoint, amount);
+
         //Dead jika health <= 0
         if (currentHealth <= 0)
         {
@@ -72,25 +84,34 @@ public class EnemyHealth : MonoBehaviour
         //set isdead
         isDead = true;
 
-        //SetCapcollider ke trigger
+        //Set capsule collider ke trigger
         capsuleCollider.isTrigger = true;
 
         //trigger play animation Dead
-        anim.SetTrigger("Dead");
+        anim.SetTrigger(DeadHash);
 
         //Play Sound Dead
         enemyAudio.clip = deathClip;
         enemyAudio.Play();
+
+        //Tambah skor (dengan combo multiplier)
+        ScoreManager.RegisterKill(scoreValue);
+
+        //Kemungkinan menjatuhkan health pickup
+        if (Random.value < healthDropChance)
+        {
+            HealthPickup.Spawn(transform.position, healthDropAmount);
+        }
     }
 
+    //Dipanggil oleh animation event di akhir animasi Death
     public void StartSinking()
     {
         //disable Navmesh Component
-        GetComponent<UnityEngine.AI.NavMeshAgent>().enabled = false;
-        //Set rigisbody ke kimematic
+        GetComponent<NavMeshAgent>().enabled = false;
+        //Set rigidbody ke kinematic
         GetComponent<Rigidbody>().isKinematic = true;
         isSinking = true;
-        ScoreManager.score += scoreValue;
         Destroy(gameObject, 2f);
     }
 }

@@ -2,19 +2,25 @@
 
 public class PlayerShooting : MonoBehaviour
 {
-    public int damagePerShot = 20;                  
-    public float timeBetweenBullets = 0.15f;        
-    public float range = 100f;                      
+    public int damagePerShot = 20;
+    public float timeBetweenBullets = 0.15f;
+    public float range = 100f;
 
-    float timer;                                    
-    Ray shootRay;                                   
-    RaycastHit shootHit;                            
-    int shootableMask;                             
-    ParticleSystem gunParticles;                    
-    LineRenderer gunLine;                           
-    AudioSource gunAudio;                           
-    Light gunLight;                                 
-    float effectsDisplayTime = 0.2f;                
+    //True jika input tembak dikendalikan oleh InputHandler (pola Command)
+    [System.NonSerialized]
+    public bool externallyDriven;
+
+    float timer;
+    Ray shootRay;
+    int shootableMask;
+    ParticleSystem gunParticles;
+    LineRenderer gunLine;
+    AudioSource gunAudio;
+    Light gunLight;
+    const float effectsDisplayTime = 0.2f;
+
+    //Senjata siap menembak (fire rate terpenuhi)
+    public bool CanShoot => timer >= timeBetweenBullets && enabled && !GameState.IsPaused;
 
     void Awake()
     {
@@ -29,7 +35,7 @@ public class PlayerShooting : MonoBehaviour
     {
         timer += Time.deltaTime;
 
-        if (Input.GetButton("Fire1") && timer >= timeBetweenBullets)
+        if (!externallyDriven && GameInput.FireHeld && CanShoot)
         {
             Shoot();
         }
@@ -63,11 +69,9 @@ public class PlayerShooting : MonoBehaviour
         shootRay.origin = transform.position;
         shootRay.direction = transform.forward;
 
-        if (Physics.Raycast(shootRay, out shootHit, range, shootableMask))
+        if (Physics.Raycast(shootRay, out RaycastHit shootHit, range, shootableMask))
         {
-            EnemyHealth enemyHealth = shootHit.collider.GetComponent<EnemyHealth>();
-
-            if (enemyHealth != null)
+            if (shootHit.collider.TryGetComponent(out EnemyHealth enemyHealth))
             {
                 enemyHealth.TakeDamage(damagePerShot, shootHit.point);
             }
@@ -78,5 +82,7 @@ public class PlayerShooting : MonoBehaviour
         {
             gunLine.SetPosition(1, shootRay.origin + shootRay.direction * range);
         }
+
+        CameraShake.Shake(0.05f, 0.05f);
     }
 }

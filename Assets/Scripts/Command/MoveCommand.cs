@@ -1,17 +1,13 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-
-public class MoveCommand : Command
+﻿public class MoveCommand : Command
 {
-    PlayerMovement playerMovement;
-    float h, v;
+    readonly PlayerMovement playerMovement;
+    readonly float h, v;
 
     public MoveCommand(PlayerMovement _playerMovement, float _h, float _v)
     {
-        this.playerMovement = _playerMovement;
-        this.h = _h;
-        this.v = _v;
+        playerMovement = _playerMovement;
+        h = _h;
+        v = _v;
     }
 
     //Trigger perintah movement

@@ -1,7 +1,6 @@
 ﻿public class ShootCommand : Command
 {
-
-    PlayerShooting playerShooting;
+    readonly PlayerShooting playerShooting;
 
     public ShootCommand(PlayerShooting _playerShooting)
     {
@@ -16,6 +15,6 @@
 
     public override void UnExecute()
     {
-
+        //Tembakan tidak dapat di-undo
     }
 }

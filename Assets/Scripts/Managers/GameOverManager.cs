@@ -1,9 +1,11 @@
 ﻿using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class GameOverManager : MonoBehaviour
 {
+    static readonly int GameOverHash = Animator.StringToHash("GameOver");
+    static readonly int WarningHash = Animator.StringToHash("Warning");
+
     public PlayerHealth playerHealth;
     public Text warningText;
     public float restartDelay = 5f;
@@ -19,25 +21,32 @@ public class GameOverManager : MonoBehaviour
 
     void Update()
     {
-       if (playerHealth.currentHealth <= 0)
+        if (playerHealth.currentHealth <= 0)
         {
-            if(!isDead)
+            if (!isDead)
             {
-                anim.SetTrigger("GameOver");
+                anim.SetTrigger(GameOverHash);
                 isDead = true;
+
+                //Simpan high score saat game over
+                ScoreManager.SaveHighScore();
             }
             restartTimer += Time.deltaTime;
 
-            if(restartTimer >= restartDelay)
+            if (restartTimer >= restartDelay)
             {
-                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                GameState.Restart();
             }
+        }
+        else if (GameInput.PausePressed)
+        {
+            GameState.TogglePause();
         }
     }
 
     public void ShowWarning(float enemyDistance)
     {
-        warningText.text = string.Format("! {0} m", Mathf.RoundToInt(enemyDistance));
-        anim.SetTrigger("Warning");
+        warningText.text = $"! {Mathf.RoundToInt(enemyDistance)} m";
+        anim.SetTrigger(WarningHash);
     }
 }

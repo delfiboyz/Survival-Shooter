@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class InputHandler : MonoBehaviour
@@ -7,16 +6,38 @@ public class InputHandler : MonoBehaviour
     public PlayerMovement playerMovement;
     public PlayerShooting playerShooting;
 
-    //Queue untuk menyimpan list command
-    Queue<Command> commands = new Queue<Command>();
+    //Jumlah maksimal command yang disimpan untuk undo
+    public int maxUndoHistory = 300;
+
+    //List command; undo mengambil command terakhir (LIFO)
+    readonly LinkedList<Command> commands = new LinkedList<Command>();
+
+    void OnEnable()
+    {
+        //InputHandler menjadi satu-satunya sumber gerak & tembak agar tidak tereksekusi dua kali
+        if (playerMovement != null) playerMovement.externallyDriven = true;
+        if (playerShooting != null) playerShooting.externallyDriven = true;
+    }
+
+    void OnDisable()
+    {
+        if (playerMovement != null) playerMovement.externallyDriven = false;
+        if (playerShooting != null) playerShooting.externallyDriven = false;
+    }
 
     void FixedUpdate()
     {
+        if (!playerMovement.enabled) return;
+
         //Menghandle input movement
         Command moveCommand = InputMovementHandling();
         if (moveCommand != null)
         {
-            commands.Enqueue(moveCommand);
+            commands.AddLast(moveCommand);
+            if (commands.Count > maxUndoHistory)
+            {
+                commands.RemoveFirst();
+            }
 
             moveCommand.Execute();
         }
@@ -24,7 +45,7 @@ public class InputHandler : MonoBehaviour
 
     void Update()
     {
-        //Mengahndle shoot
+        //Menghandle shoot
         Command shootCommand = InputShootHandling();
         if (shootCommand != null)
         {
@@ -34,40 +55,24 @@ public class InputHandler : MonoBehaviour
 
     Command InputMovementHandling()
     {
-        //Check jika movement sesuai dengan key nya
-        if (Input.GetKey(KeyCode.D))
-        {
-            return new MoveCommand(playerMovement, 1, 0);
-        }
-        else if (Input.GetKey(KeyCode.A))
-        {
-            return new MoveCommand(playerMovement, -1, 0);
-        }
-        else if (Input.GetKey(KeyCode.W))
-        {
-            return new MoveCommand(playerMovement, 0, 1);
-        }
-        else if (Input.GetKey(KeyCode.S))
-        {
-            return new MoveCommand(playerMovement, 0, -1);
-        }
-        else if (Input.GetKey(KeyCode.Z))
+        if (GameInput.UndoHeld)
         {
             //Undo movement
             return Undo();
         }
-        else
-        {
-            return new MoveCommand(playerMovement, 0, 0); ;
-        }
+
+        //Input keyboard (WASD / panah) atau stick kiri gamepad, termasuk arah diagonal
+        Vector2 move = GameInput.Move;
+        return new MoveCommand(playerMovement, move.x, move.y);
     }
 
     Command Undo()
     {
-        //Jika Queue command tidak kosong, lakukan perintah undo
+        //Jika list command tidak kosong, lakukan perintah undo pada command terakhir
         if (commands.Count > 0)
         {
-            Command undoCommand = commands.Dequeue();
+            Command undoCommand = commands.Last.Value;
+            commands.RemoveLast();
             undoCommand.UnExecute();
         }
         return null;
@@ -75,15 +80,11 @@ public class InputHandler : MonoBehaviour
 
     Command InputShootHandling()
     {
-        //Jika menembak trigger shoot command
-        if (Input.GetButtonDown("Fire1"))
+        //Jika tombol tembak ditahan dan senjata siap, trigger shoot command
+        if (GameInput.FireHeld && playerShooting.CanShoot)
         {
             return new ShootCommand(playerShooting);
         }
-        else
-        {
-            return null;
-        }
+        return null;
     }
 }
-

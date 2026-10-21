@@ -1,10 +1,12 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
 using UnityEngine.SceneManagement;
 
 public class PlayerHealth : MonoBehaviour
 {
+    static readonly int DieHash = Animator.StringToHash("Die");
+
     public int startingHealth = 100;
     public int currentHealth;
     public Slider healthSlider;
@@ -12,6 +14,13 @@ public class PlayerHealth : MonoBehaviour
     public AudioClip deathClip;
     public float flashSpeed = 5f;
     public Color flashColour = new Color(1f, 0f, 0f, 0.1f);
+
+    //Event untuk sistem lain (UI, kamera, dsb.)
+    public event Action<int> Damaged;
+    public event Action<int> Healed;
+    public event Action Died;
+
+    public bool IsDead => isDead;
 
     Animator anim;
     AudioSource playerAudio;
@@ -22,7 +31,7 @@ public class PlayerHealth : MonoBehaviour
 
     void Awake()
     {
-        //Mendapatkan refernce komponen
+        //Mendapatkan reference komponen
         anim = GetComponent<Animator>();
         playerAudio = GetComponent<AudioSource>();
         playerMovement = GetComponent<PlayerMovement>();
@@ -34,7 +43,7 @@ public class PlayerHealth : MonoBehaviour
 
     void Update()
     {
-        //Jika terkena damaage
+        //Jika terkena damage
         if (damaged)
         {
             //Merubah warna gambar menjadi value dari flashColour
@@ -53,10 +62,12 @@ public class PlayerHealth : MonoBehaviour
     //fungsi untuk mendapatkan damage
     public void TakeDamage(int amount)
     {
+        if (isDead) return;
+
         damaged = true;
 
         //mengurangi health
-        currentHealth -= amount;
+        currentHealth = Mathf.Max(currentHealth - amount, 0);
 
         //Merubah tampilan dari health slider
         healthSlider.value = currentHealth;
@@ -64,11 +75,28 @@ public class PlayerHealth : MonoBehaviour
         //Memainkan suara ketika terkena damage
         playerAudio.Play();
 
-        //Memanggil method Death() jika darahnya kurang dari sama dengan 10 dan belu mati
-        if (currentHealth <= 0 && !isDead)
+        //Feedback: kamera bergetar dan getaran gamepad
+        CameraShake.Shake(0.2f, 0.25f);
+        GameInput.Rumble(0.4f, 0.6f, 0.15f);
+
+        Damaged?.Invoke(amount);
+
+        //Memanggil method Death() jika darahnya habis dan belum mati
+        if (currentHealth <= 0)
         {
             Death();
         }
+    }
+
+    //fungsi untuk memulihkan health (misalnya dari health pickup)
+    public void Heal(int amount)
+    {
+        if (isDead || currentHealth >= startingHealth) return;
+
+        currentHealth = Mathf.Min(currentHealth + amount, startingHealth);
+        healthSlider.value = currentHealth;
+
+        Healed?.Invoke(amount);
     }
 
     void Death()
@@ -78,7 +106,7 @@ public class PlayerHealth : MonoBehaviour
         playerShooting.DisableEffects();
 
         //mentrigger animasi Die
-        anim.SetTrigger("Die");
+        anim.SetTrigger(DieHash);
 
         //Memainkan suara ketika mati
         playerAudio.clip = deathClip;
@@ -89,11 +117,15 @@ public class PlayerHealth : MonoBehaviour
 
         //mematikan script player shooting
         playerShooting.enabled = false;
+
+        GameInput.Rumble(0.8f, 1f, 0.5f);
+
+        Died?.Invoke();
     }
 
     public void RestartLevel()
     {
-        //meload ulang scene dengan index 0 pada build setting
-        SceneManager.LoadScene(0);
+        //meload ulang scene yang sedang aktif
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }

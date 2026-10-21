@@ -1,13 +1,23 @@
 ﻿using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody), typeof(Animator))]
 public class PlayerMovement : MonoBehaviour
 {
+    static readonly int IsWalkingHash = Animator.StringToHash("IsWalking");
+
     public float speed = 6f;
+
+    //True jika gerakan dikendalikan oleh InputHandler (pola Command),
+    //sehingga script ini hanya mengurus rotasi agar tidak bergerak dua kali
+    [System.NonSerialized]
+    public bool externallyDriven;
+
     Vector3 movement;
     Animator anim;
     Rigidbody playerRigidbody;
+    Camera mainCamera;
     int floorMask;
-    float camRayLength = 100f;
+    const float camRayLength = 100f;
 
     private void Awake()
     {
@@ -19,20 +29,25 @@ public class PlayerMovement : MonoBehaviour
 
         //Mendapatkan komponen Rigidbody
         playerRigidbody = GetComponent<Rigidbody>();
+
+        //Interpolasi agar gerakan terlihat halus di frame rate tinggi
+        playerRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+
+        //Cache kamera utama (Camera.main melakukan pencarian setiap dipanggil)
+        mainCamera = Camera.main;
     }
 
     private void FixedUpdate()
     {
-        //Mendapatkan nilai input horizontal (-1,0,1)
-        float h = Input.GetAxisRaw("Horizontal");
+        if (!externallyDriven)
+        {
+            //Mendapatkan nilai input (keyboard / stick kiri gamepad)
+            Vector2 input = GameInput.Move;
+            Move(input.x, input.y);
+            Animating(input.x, input.y);
+        }
 
-        //Mendapatkan nilai input vertical (-1,0,1)
-        float v = Input.GetAxisRaw("Vertical");
-
-        Move(h, v);
         Turning();
-        Animating(h, v);
-
     }
 
     //Method player dapat berjalan
@@ -41,39 +56,48 @@ public class PlayerMovement : MonoBehaviour
         //Set nilai x dan y
         movement.Set(h, 0f, v);
 
-        //Menormalisasi nilai vector agar total panjang dari vector adalah 1
-        movement = movement.normalized * speed * Time.deltaTime;
+        //Batasi panjang vector maksimal 1 (gerak diagonal tidak lebih cepat, stick analog tetap halus)
+        movement = Vector3.ClampMagnitude(movement, 1f) * speed * Time.fixedDeltaTime;
 
         //Move to position
-        playerRigidbody.MovePosition(transform.position + movement);
+        playerRigidbody.MovePosition(playerRigidbody.position + movement);
     }
 
     void Turning()
     {
-        //Buat Ray dari posisi mouse di layar
-        Ray camRay = Camera.main.ScreenPointToRay(Input.mousePosition);
+        //Bidik memakai stick kanan gamepad jika digunakan
+        if (GameInput.TryGetStickAim(out Vector2 aim))
+        {
+            playerRigidbody.MoveRotation(Quaternion.LookRotation(new Vector3(aim.x, 0f, aim.y)));
+            return;
+        }
 
-        //Buat raycast untuk floorHit
-        RaycastHit floorHit;
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+            if (mainCamera == null) return;
+        }
+
+        //Buat Ray dari posisi mouse di layar
+        Ray camRay = mainCamera.ScreenPointToRay(GameInput.PointerPosition);
 
         //Lakukan raycast
-        if (Physics.Raycast(camRay, out floorHit, camRayLength, floorMask))
+        if (Physics.Raycast(camRay, out RaycastHit floorHit, camRayLength, floorMask))
         {
-            //Mendapatkan vector daro posisi player dan posisi floorHit
+            //Mendapatkan vector dari posisi player dan posisi floorHit
             Vector3 playerToMouse = floorHit.point - transform.position;
             playerToMouse.y = 0f;
 
-            //Mendapatkan look rotation baru ke hit position
-            Quaternion newRotation = Quaternion.LookRotation(playerToMouse);
+            if (playerToMouse.sqrMagnitude < 0.0001f) return;
 
-            //Rotasi player
-            playerRigidbody.MoveRotation(newRotation);
+            //Rotasi player ke arah hit position
+            playerRigidbody.MoveRotation(Quaternion.LookRotation(playerToMouse));
         }
     }
 
     public void Animating(float h, float v)
     {
         bool walking = h != 0f || v != 0f;
-        anim.SetBool("IsWalking", walking);
+        anim.SetBool(IsWalkingHash, walking);
     }
 }

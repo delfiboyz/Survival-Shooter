@@ -1,8 +1,9 @@
 ﻿using UnityEngine;
-using System.Collections;
 
 public class EnemyAttack : MonoBehaviour
 {
+    static readonly int PlayerDeadHash = Animator.StringToHash("PlayerDead");
+
     public float timeBetweenAttacks = 0.5f;
     public int attackDamage = 10;
 
@@ -12,6 +13,7 @@ public class EnemyAttack : MonoBehaviour
     PlayerHealth playerHealth;
     EnemyHealth enemyHealth;
     bool playerInRange;
+    bool playerDeadTriggered;
     float timer;
 
 
@@ -34,7 +36,7 @@ public class EnemyAttack : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         //Set player in range
-        if (other.gameObject == player && other.isTrigger == false)
+        if (other.gameObject == player && !other.isTrigger)
         {
             playerInRange = true;
         }
@@ -44,7 +46,7 @@ public class EnemyAttack : MonoBehaviour
     void OnTriggerExit(Collider other)
     {
         //Set player not in range
-        if (other.gameObject == player && other.isTrigger == false)
+        if (other.gameObject == player && !other.isTrigger)
         {
             playerInRange = false;
         }
@@ -60,10 +62,11 @@ public class EnemyAttack : MonoBehaviour
             Attack();
         }
 
-        //mentrigger animasi PlayerDead jika darah player kurang dari sama dengan 0
-        if (playerHealth.currentHealth <= 0)
+        //mentrigger animasi PlayerDead sekali jika darah player habis
+        if (!playerDeadTriggered && playerHealth.currentHealth <= 0)
         {
-            anim.SetTrigger("PlayerDead");
+            anim.SetTrigger(PlayerDeadHash);
+            playerDeadTriggered = true;
         }
     }
 

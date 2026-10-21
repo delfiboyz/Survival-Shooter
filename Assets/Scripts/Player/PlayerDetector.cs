@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PlayerDetector : MonoBehaviour
 {
@@ -8,7 +6,7 @@ public class PlayerDetector : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.tag == "Enemy" && !other.isTrigger)
+        if (other.CompareTag("Enemy") && !other.isTrigger)
         {
             float enemyDistance = Vector3.Distance(transform.position, other.transform.position);
             gameOverManager.ShowWarning(enemyDistance);

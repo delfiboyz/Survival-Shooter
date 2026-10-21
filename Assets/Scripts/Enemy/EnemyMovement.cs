@@ -1,28 +1,30 @@
 ﻿using UnityEngine;
+using UnityEngine.AI;
 
 public class EnemyMovement : MonoBehaviour
 {
     Transform player;
     PlayerHealth playerHealth;
     EnemyHealth enemyHealth;
-    UnityEngine.AI.NavMeshAgent nav;
+    NavMeshAgent nav;
 
 
     void Awake()
     {
-        //Cari game
-        //object with tag player
+        //Cari game object dengan tag Player
         player = GameObject.FindGameObjectWithTag("Player").transform;
 
         //Mendapatkan componen reference
         playerHealth = player.GetComponent<PlayerHealth>();
         enemyHealth = GetComponent<EnemyHealth>();
-        nav = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        nav = GetComponent<NavMeshAgent>();
     }
 
 
     void Update()
     {
+        if (!nav.enabled) return;
+
         //Pindah ke player position
         if (enemyHealth.currentHealth > 0 && playerHealth.currentHealth > 0)
         {
